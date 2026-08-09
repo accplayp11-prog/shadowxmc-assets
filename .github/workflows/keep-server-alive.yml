@@ -1,0 +1,41 @@
+name: keep-server-alive
+
+on:
+  schedule:
+    - cron: "*/20 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    concurrency:
+      group: keep-server-alive
+      cancel-in-progress: false
+    steps:
+      - name: Authenticate GitHub CLI
+        env:
+          GH_TOKEN: ${{ secrets.KEEPALIVE_TOKEN }}
+        run: echo "$GH_TOKEN" | gh auth login --with-token
+
+      - name: Start codespace if it was stopped
+        env:
+          GH_TOKEN: ${{ secrets.KEEPALIVE_TOKEN }}
+        run: |
+          gh codespace start -c special-palm-tree-rrqg4vgj67cp6wp >/dev/null 2>&1 || true
+          echo "codespace start requested"
+
+      - name: Ensure Minecraft stack
+        env:
+          GH_TOKEN: ${{ secrets.KEEPALIVE_TOKEN }}
+        run: |
+          for i in 1 2 3 4 5 6 7 8; do
+            if gh codespace ssh -c special-palm-tree-rrqg4vgj67cp6wp -- bash /workspaces/tests/.keepalive/ensure_stack.sh; then
+              echo "stack ensured (attempt $i)"
+              exit 0
+            fi
+            echo "attempt $i failed, waiting 15s"
+            sleep 15
+          done
+          echo "could not reach codespace after retries"
+          exit 0
