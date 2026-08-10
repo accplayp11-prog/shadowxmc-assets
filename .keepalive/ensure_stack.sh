@@ -158,4 +158,14 @@ if ! pgrep -f "keep_server_alive.sh" >/dev/null 2>&1; then
   sudo setsid bash -c 'exec /workspaces/tests/.keepalive/keep_server_alive.sh >>/tmp/keepalive.log 2>&1' </dev/null >/dev/null 2>&1 &
 fi
 
+# --- 7) publish tunnel addresses to the repo (cs2 reads these to reach the panel) ---
+if git -C /workspaces/tests rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  if ! git -C /workspaces/tests diff --quiet -- .keepalive/panel-address.txt .keepalive/wings-hostname.txt 2>/dev/null; then
+    git -C /workspaces/tests add .keepalive/panel-address.txt .keepalive/wings-hostname.txt 2>/dev/null
+    git -C /workspaces/tests commit -m "sync tunnel addresses" -q 2>/dev/null
+    git -C /workspaces/tests push -q 2>/dev/null || true
+  fi
+fi
+
 echo "stack ok"
+
