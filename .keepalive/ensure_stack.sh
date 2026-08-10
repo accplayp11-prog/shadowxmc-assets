@@ -205,5 +205,14 @@ if git -C /workspaces/tests rev-parse --is-inside-work-tree >/dev/null 2>&1; the
   fi
 fi
 
+# panel container: force wings TLS verification off (trycloudflare tunnel CA issues) and keep CA certs fresh
+if sudo docker ps --format "{{.Names}}" | grep -q "^ptero-panel$"; then
+  if ! sudo docker exec ptero-panel grep -q "'verify' => false," /app/app/Repositories/Wings/DaemonRepository.php 2>/dev/null; then
+    sudo docker exec ptero-panel sed -i "s/'verify' => \$this->app->environment('production'),/'verify' => false,/" /app/app/Repositories/Wings/DaemonRepository.php
+    sudo docker restart ptero-panel
+    sleep 12
+  fi
+fi
+
 echo "stack ok"
 
