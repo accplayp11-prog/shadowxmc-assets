@@ -57,6 +57,25 @@ if ! sudo docker ps --format "{{.Names}}" | grep -q "^${BOT_UUID}$"; then
   fi
 fi
 
+# --- 3d) Ree6 server (Discord bot, MariaDB) + mariadb proxy bridge ---
+REE6_UUID=66c242fc-7969-4427-ba87-0024001837c8
+if ! sudo docker ps --format "{{.Names}}" | grep -q "^${REE6_UUID}$"; then
+  RTOKEN=$(sudo grep "^token:" "$STACK_DIR/wings/config.yml" 2>/dev/null | awk '{print $2}')
+  if [ -n "$RTOKEN" ]; then
+    curl -s -X POST -H "Authorization: Bearer $RTOKEN" -H "Content-Type: application/json" \
+      -d '{"action":"start"}' "http://127.0.0.1:8081/api/servers/$REE6_UUID/power" >/dev/null 2>&1
+  fi
+fi
+if ! sudo docker ps -a --format "{{.Names}}" | grep -q "^mariadb-proxy$"; then
+  sudo docker run -d --name mariadb-proxy --restart unless-stopped --network pterodactyl-lab_default alpine/socat TCP-LISTEN:3306,fork,reuseaddr TCP:ptero-database:3306 >/dev/null 2>&1
+  sudo docker network connect pterodactyl_nw mariadb-proxy >/dev/null 2>&1
+else
+  sudo docker start mariadb-proxy >/dev/null 2>&1
+  if ! sudo docker inspect mariadb-proxy --format '{{range $k,$v := .NetworkSettings.Networks}}{{$k}} {{end}}' | grep -q pterodactyl_nw; then
+    sudo docker network connect pterodactyl_nw mariadb-proxy >/dev/null 2>&1
+  fi
+fi
+
 # --- 3b) wings TLS proxy (panel->wings internal routing) + idle watcher ---
 if [ -x "$WINGS_PROXY_SETUP" ]; then
   sudo bash "$WINGS_PROXY_SETUP" >/tmp/wings-proxy-setup.log 2>&1 || true
