@@ -46,6 +46,17 @@ if ! sudo docker ps --format "{{.Names}}" | grep -q "^${SERVER_UUID}$"; then
   fi
 fi
 
+
+# --- 3c) DC bot server (Discord bot on node 1) ---
+BOT_UUID=3ec446d7-fa8f-45e0-a122-b4788ef7fb77
+if ! sudo docker ps --format "{{.Names}}" | grep -q "^${BOT_UUID}$"; then
+  BTOKEN=$(sudo grep "^token:" "$STACK_DIR/wings/config.yml" 2>/dev/null | awk '{print $2}')
+  if [ -n "$BTOKEN" ]; then
+    curl -s -X POST -H "Authorization: Bearer $BTOKEN" -H "Content-Type: application/json" \
+      -d '{"action":"start"}' "http://127.0.0.1:8081/api/servers/$BOT_UUID/power" >/dev/null 2>&1
+  fi
+fi
+
 # --- 3b) wings TLS proxy (panel->wings internal routing) + idle watcher ---
 if [ -x "$WINGS_PROXY_SETUP" ]; then
   sudo bash "$WINGS_PROXY_SETUP" >/tmp/wings-proxy-setup.log 2>&1 || true
