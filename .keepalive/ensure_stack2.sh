@@ -9,6 +9,8 @@ DAEMON_TOKEN=VMftKkdvpo4uj5XbaDTswQn1yGeYW7Og8xAEJ2Z3BFSPIl9RCNir0UhcmqHzL6
 PANEL_API_KEY=ptla_YnOo2CjxwwHELTDRWg4unx9oRaXxsXVuhWqcBnnNpSf
 TEST_SERVER=0879681e-3560-44fe-8cdd-c7e3f9c880b2
 REPO_PANEL_FILE=https://raw.githubusercontent.com/itsindex/tests/main/.keepalive/panel-address.txt
+APIPORT=$(sudo grep -A4 '^api:' "$WINGS_CFG" | sed -n 's/^  port: *//p' | head -1)
+APIPORT=${APIPORT:-8082}
 
 if ! pgrep -f "wings --config" >/dev/null 2>&1; then
   sudo nohup "$WINGS_BIN" --config "$WINGS_CFG" >>"$DIR/wings2.log" 2>&1 &
@@ -17,13 +19,13 @@ fi
 
 if ! sudo docker ps --format "{{.Names}}" | grep -q "^${TEST_SERVER}$"; then
   curl -s -X POST -H "Authorization: Bearer $DAEMON_TOKEN" -H "Content-Type: application/json" \
-    -d '{"action":"start"}' "http://127.0.0.1:8082/api/servers/$TEST_SERVER/power" >/dev/null 2>&1 || true
+    -d '{"action":"start"}' "http://127.0.0.1:$APIPORT/api/servers/$TEST_SERVER/power" >/dev/null 2>&1 || true
 fi
 
 PANEL=$(curl -s "$REPO_PANEL_FILE" | tr -d '[:space:]')
 if [ -x "$CF" ]; then
-  if ! pgrep -f "cloudflared tunnel --url http://127.0.0.1:8082" >/dev/null 2>&1; then
-    sudo nohup "$CF" tunnel --url http://127.0.0.1:8082 --no-autoupdate >"$DIR/wings-tunnel.log" 2>&1 &
+  if ! pgrep -f "cloudflared tunnel --url http://127.0.0.1:$APIPORT" >/dev/null 2>&1; then
+    sudo nohup "$CF" tunnel --url http://127.0.0.1:$APIPORT --no-autoupdate >"$DIR/wings-tunnel.log" 2>&1 &
     sleep 12
   fi
   HOST=$(sudo grep -oE "[a-zA-Z0-9-]+\.trycloudflare\.com" "$DIR/wings-tunnel.log" 2>/dev/null | head -1)
