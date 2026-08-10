@@ -42,15 +42,29 @@ if [ -n "$PANEL" ]; then
   if ! sudo grep -q "remote: $PANEL" "$WINGS_CFG" 2>/dev/null; then
     sudo cp "$WINGS_CFG" "$WINGS_CFG.bak"
     sudo sed -i "s|^remote: .*|remote: $PANEL|" "$WINGS_CFG"
-    sudo python3 - "$PANEL" <<'PY'
+    sudo python3 - "/home/codespace/pterodactyl-lab/wings/config.yml" "$PANEL" <<'PY'
 import sys
-p="/home/codespace/pterodactyl-lab/wings/config.yml"
-h=sys.argv[1]
-s=open(p).read()
-line="  - %s" % h
-if line not in s:
-    s=s.replace("allowed_origins:", "allowed_origins:\n"+line, 1)
-    open(p,"w").write(s)
+p,h=sys.argv[1],sys.argv[2]
+lines=open(p).read().split("\n")
+out=[]; in_block=False; entries=[]
+for ln in lines:
+    if in_block:
+        if ln.strip()=="" or (ln and ln[0] not in " -"):
+            in_block=False
+            out.append("allowed_origins:")
+            if h not in entries: entries.append(h)
+            for e in entries: out.append("  - %s" % e)
+            out.append(ln)
+            continue
+        if ln.strip().startswith("- "):
+            e=ln.strip()[2:].strip()
+            if e not in entries: entries.append(e)
+            continue
+        continue
+    if ln.strip()=="allowed_origins:":
+        in_block=True; continue
+    out.append(ln)
+open(p,"w").write("\n".join(out))
 PY
     sudo pkill -f "wings --config"
     sleep 3

@@ -91,13 +91,29 @@ fi
 if [ -f "$WINGS_CFG" ]; then
   if ! sudo grep -q "special-palm-tree-rrqg4vgj67cp6wp-8080.app.github.dev" "$WINGS_CFG" 2>/dev/null; then
     sudo cp "$WINGS_CFG" "$WINGS_CFG.bak"
-    sudo python3 - <<PY2
+    sudo python3 - "$WINGS_CFG" "https://special-palm-tree-rrqg4vgj67cp6wp-8080.app.github.dev" <<'PY2'
 import sys
-p="$WINGS_CFG"
-s=open(p).read()
-if "allowed_origins: []" in s:
-    s=s.replace("allowed_origins: []", "allowed_origins:\\n  - https://special-palm-tree-rrqg4vgj67cp6wp-8080.app.github.dev", 1)
-    open(p,"w").write(s)
+p,h=sys.argv[1],sys.argv[2]
+lines=open(p).read().split("\n")
+out=[]; in_block=False; entries=[]
+for ln in lines:
+    if in_block:
+        if ln.strip()=="" or (ln and ln[0] not in " -"):
+            in_block=False
+            out.append("allowed_origins:")
+            if h not in entries: entries.append(h)
+            for e in entries: out.append("  - %s" % e)
+            out.append(ln)
+            continue
+        if ln.strip().startswith("- "):
+            e=ln.strip()[2:].strip()
+            if e not in entries: entries.append(e)
+            continue
+        continue
+    if ln.strip()=="allowed_origins:":
+        in_block=True; continue
+    out.append(ln)
+open(p,"w").write("\n".join(out))
 PY2
     sudo pkill -f "wings --config config.yml"
     sleep 3
@@ -142,18 +158,29 @@ if [ -x "$CF" ]; then
     fi
     # ensure wings allows the panel origin
     if ! sudo grep -q "$PHOST" "$WINGS_CFG" 2>/dev/null; then
-      sudo python3 - "$PHOST" <<'PY2'
+      sudo python3 - "/home/codespace/pterodactyl-lab/wings/config.yml" "$PHOST" <<'PY2'
 import sys
-p="/home/codespace/pterodactyl-lab/wings/config.yml"
-h=sys.argv[1]
-s=open(p).read()
-line="  - https://%s" % h
-if line not in s:
-    if "allowed_origins:" in s and not s.split("allowed_origins:",1)[1].strip().startswith("[]"):
-        s=s.replace("allowed_origins:", "allowed_origins:\n"+line, 1)
-    else:
-        s=s.replace("allowed_origins: []", "allowed_origins:\n"+line, 1)
-    open(p,"w").write(s)
+p,h=sys.argv[1],sys.argv[2]
+lines=open(p).read().split("\n")
+out=[]; in_block=False; entries=[]
+for ln in lines:
+    if in_block:
+        if ln.strip()=="" or (ln and ln[0] not in " -"):
+            in_block=False
+            out.append("allowed_origins:")
+            if h not in entries: entries.append(h)
+            for e in entries: out.append("  - %s" % e)
+            out.append(ln)
+            continue
+        if ln.strip().startswith("- "):
+            e=ln.strip()[2:].strip()
+            if e not in entries: entries.append(e)
+            continue
+        continue
+    if ln.strip()=="allowed_origins:":
+        in_block=True; continue
+    out.append(ln)
+open(p,"w").write("\n".join(out))
 PY2
       sudo pkill -f "wings --config config.yml"
       sleep 3
