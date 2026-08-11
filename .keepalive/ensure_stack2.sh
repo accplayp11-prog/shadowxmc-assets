@@ -7,7 +7,6 @@ WINGS_CFG=/home/codespace/pterodactyl-lab/wings/config.yml
 CF=$DIR/cloudflared
 DAEMON_TOKEN=VMftKkdvpo4uj5XbaDTswQn1yGeYW7Og8xAEJ2Z3BFSPIl9RCNir0UhcmqHzL6
 PANEL_API_KEY=ptla_YnOo2CjxwwHELTDRWg4unx9oRaXxsXVuhWqcBnnNpSf
-TEST_SERVER=0879681e-3560-44fe-8cdd-c7e3f9c880b2
 REPO_PANEL_FILE=https://raw.githubusercontent.com/itsindex/tests/main/.keepalive/panel-address.txt
 APIPORT=$(sudo grep -A4 '^api:' "$WINGS_CFG" | sed -n 's/^  port: *//p' | head -1)
 APIPORT=${APIPORT:-8082}
@@ -17,10 +16,6 @@ if ! pgrep -f "wings --config" >/dev/null 2>&1; then
   sleep 12
 fi
 
-if ! sudo docker ps --format "{{.Names}}" | grep -q "^${TEST_SERVER}$"; then
-  curl -s -X POST -H "Authorization: Bearer $DAEMON_TOKEN" -H "Content-Type: application/json" \
-    -d '{"action":"start"}' "http://127.0.0.1:$APIPORT/api/servers/$TEST_SERVER/power" >/dev/null 2>&1 || true
-fi
 
 PANEL=$(curl -s "$REPO_PANEL_FILE" | tr -d '[:space:]')
 if [ -x "$CF" ]; then
@@ -54,6 +49,7 @@ for ln in lines:
         if ln.strip()=="" or (ln and ln[0] not in " -"):
             in_block=False
             out.append("allowed_origins:")
+            if "'*'" not in entries: entries.insert(0, "'*'")
             if h not in entries: entries.append(h)
             for e in entries: out.append("  - %s" % e)
             out.append(ln)
